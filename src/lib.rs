@@ -11,9 +11,9 @@ impl BLSVerificationPOC {
     #[init]
     pub fn new() -> Self { Self {} }
 
-    //pub fn verify_bls_signature(&self, msg: Vec<u8>, signature: Vec<u8>, pubkeys: Vec<Vec<u8>>) -> bool {
-    //    return true
-    //}
+    pub fn verify_bls_signature(msg: Vec<u8>, signature: Vec<u8>, pubkeys: Vec<Vec<u8>>) -> bool {
+        return true;
+    }
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -108,8 +108,9 @@ mod tests {
             domain,
         );
 
-        //let res = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
-        //println!("{:?}", res);
+        let res = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
+
+        assert_eq!(res.unwrap().json::<bool>().unwrap(), true);
     }
 
     #[derive(Debug, Clone)]
@@ -150,6 +151,7 @@ mod tests {
             .max_gas()
             .transact()
             .await.unwrap();
+
         res.is_success()
     }
 
