@@ -109,8 +109,11 @@ mod tests {
         );
 
         let res = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
-
         assert_eq!(res.unwrap().json::<bool>().unwrap(), true);
+
+        pubks.pop();
+        let res_false = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
+        assert_eq!(res_false.unwrap().json::<bool>().unwrap(), false);
     }
 
     #[derive(Debug, Clone)]
