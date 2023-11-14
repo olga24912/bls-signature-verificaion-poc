@@ -1,6 +1,8 @@
+use amcl::bls381::fp2::FP2;
 use near_sdk::near_bindgen;
 use near_sdk::PanicOnDefault;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use amcl::bls381::hash_to_curve::hash_to_field_fp2;
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
@@ -12,7 +14,24 @@ impl BLSVerificationPOC {
     pub fn new() -> Self { Self {} }
 
     pub fn verify_bls_signature(msg: Vec<u8>, signature: Vec<u8>, pubkeys: Vec<Vec<u8>>) -> bool {
+        let dst: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
+        let msg_fp2 =
+            hash_to_field_fp2(msg.as_slice(), 2, dst).expect("hash to field should not fail for given parameters");
+
+        let mut msg_fp2_0: [u8; 96] = [0; 96];
+        let mut msg_fp2_1: [u8; 96] = [0; 96];
+        Self::fp2_to_u8(&msg_fp2[0], &mut msg_fp2_0);
+        Self::fp2_to_u8(&msg_fp2[1], &mut msg_fp2_1);
+
+        //let mut msg_g2_0 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_0);
+        //let mut msg_g2_1 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_1);
+
         return true;
+    }
+
+    fn fp2_to_u8(u: &FP2, out: &mut [u8; 96]) {
+        u.getb().to_byte_array(&mut out[0..48], 0);
+        u.geta().to_byte_array(&mut out[48..96], 0);
     }
 }
 
@@ -29,6 +48,7 @@ mod tests {
     use bitvec::order::Lsb0;
     use bitvec::prelude::BitVec;
     use std::str::FromStr;
+    use crate::BLSVerificationPOC;
 
     const WASM_FILEPATH: &str =
         "./target/wasm32-unknown-unknown/release/bls_verification_poc.wasm";
@@ -170,7 +190,7 @@ mod tests {
 
     pub fn get_participant_pubkeys(
         public_keys: &[PublicKeyBytes],
-        sync_committee_bits: &BitVec<u8, Lsb0>,
+        sync_committee_bits: &BitVec<u8, Lsb0>
     ) -> Vec<PublicKeyBytes> {
         let mut result: Vec<PublicKeyBytes> = vec![];
         for (idx, bit) in sync_committee_bits.iter().by_vals().enumerate() {

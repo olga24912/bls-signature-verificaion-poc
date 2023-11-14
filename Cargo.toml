@@ -7,7 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.1.1"
+amcl = { git = "https://github.com/sigp/incubator-milagro-crypto-rust.git", default-features = false, features = ["bls381"]}
+near-sdk = { git = "https://github.com/olga24912/near-sdk-rs.git", branch = "bls12-381" }
 
 [dev-dependencies]
 workspaces = "0.6"
@@ -21,3 +22,4 @@ tree_hash = { git = "https://github.com/aurora-is-near/lighthouse.git", tag = "v
 [patch]
 [patch.crates-io]
 eth2_hashing = { path = "../../rainbow-bridge/contracts/near/eth2_hashing" }
+near-sdk = { git = "https://github.com/olga24912/near-sdk-rs.git", branch = "bls12-381" }
