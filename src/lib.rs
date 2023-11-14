@@ -1,3 +1,5 @@
+use amcl::bls381::bls381::utils::serialize_uncompressed_g1;
+use amcl::bls381::ecp::ECP;
 use amcl::bls381::fp2::FP2;
 use near_sdk::near_bindgen;
 use near_sdk::PanicOnDefault;
@@ -23,10 +25,26 @@ impl BLSVerificationPOC {
         Self::fp2_to_u8(&msg_fp2[0], &mut msg_fp2_0);
         Self::fp2_to_u8(&msg_fp2[1], &mut msg_fp2_1);
 
-        //let mut msg_g2_0 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_0);
-        //let mut msg_g2_1 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_1);
+        let mut msg_g2_0 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_0);
+        let mut msg_g2_1 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_1);
+        msg_g2_0.append(&mut vec![0u8]);
+        msg_g2_0.append(&mut msg_g2_1);
+        msg_g2_0.append(&mut vec![0u8]);
 
-        return true;
+        let msg_g2 = near_sdk::env::bls12381_g2_sum(msg_g2_0.as_slice());
+        let pubkeys_ser: Vec<u8> = pubkeys.concat();
+
+        let pks_decompress = near_sdk::env::bls12381_g1_decompress(&pubkeys_ser);
+        let pk_agg = near_sdk::env::bls12381_g1_sum(&pks_decompress);
+
+        let mut gen = ECP::generator();
+        gen.neg();
+        let gneg = serialize_uncompressed_g1(&gen);
+
+        let sig_des = near_sdk::env::bls12381_g2_decompress(&signature);
+        let pairing_input = vec![pk_agg, msg_g2, gneg.to_vec(), sig_des].concat();
+
+        return near_sdk::env::bls12381_pairing_check(&pairing_input) == 1;
     }
 
     fn fp2_to_u8(u: &FP2, out: &mut [u8; 96]) {
