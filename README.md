@@ -1,5 +1,12 @@
 # Proof of Concept: using BLS12-381 host-functions for BLS signature verification
 
+The contract in this repository shows how to implement BLS-signatures verification by using 
+the host functions proposed in the https://github.com/near/NEPs/pull/488
+
+For testing, we use the real data from Ethereum Light Client Updates.
+
+The host-functions implementation: https://github.com/near/nearcore/pull/9317
+
 ## Running tests
 For running tests 
 1. clone nearcore repo and switch branch
