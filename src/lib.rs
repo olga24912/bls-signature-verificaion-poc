@@ -161,10 +161,7 @@ mod tests {
         let res = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
         assert_eq!(res.clone().unwrap().json::<bool>().unwrap(), true);
 
-        println!("{:?}", res);
         println!("Gas consumption: {:?}", res.unwrap().total_gas_burnt);
-
-        println!("Verify: {:?}", verify_signature(signing_root.0.as_bytes().to_vec(), light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), pubks.clone()));
 
         pubks.pop();
         let res_false = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
@@ -232,61 +229,5 @@ mod tests {
             }
         }
         result
-    }
-
-    fn verify_signature(msg: Vec<u8>, sign: Vec<u8>, pks: Vec<Vec<u8>>) -> bool {
-        let msg_hash = hash_to_curve_g2(&msg);
-        println!("msg_hash: {:?}", msg_hash);
-
-        let mut pk_agg:[u8; G1_BYTES] = pks[0][0..G1_BYTES].try_into().unwrap();
-        for i in 1..pks.len() {
-            pk_agg = bls12_g1add(&pk_agg, &pks[i]);
-        }
-
-        println!("pk_agg: {:?}", serialize_uncompressed_g1(&deserialize_g1(&pk_agg).unwrap()));
-
-        let mut gen = ECP::generator();
-        gen.neg();
-        let g = serialize_g1(&gen);
-
-        return bls12_pairing(&pk_agg, &msg_hash, &g, &sign);
-    }
-
-    pub fn hash_to_curve_g2(msg: &[u8]) -> Vec<u8> {
-        let dst: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-
-        let u =
-            hash_to_field_fp2(&msg, 2, dst).expect("hash to field should not fail for given parameters");
-        let mut q0 = map_to_curve_g2(u[0].clone());
-        q0.clear_cofactor();
-        println!("q0_0: {:?}", serialize_uncompressed_g2(&q0).to_vec());
-
-        let q0 = amcl::bls381::bls381::utils::hash_to_curve_g2(msg, dst);
-        serialize_uncompressed_g2(&q0).to_vec()
-    }
-
-    fn bls12_g1add(p1: &[u8], p2: &[u8]) -> [u8; G1_BYTES] {
-        let mut p1s = deserialize_g1(p1).unwrap();
-        let p2s = deserialize_g1(p2).unwrap();
-
-        p1s.add(&p2s);
-
-        return serialize_g1(&p1s);
-    }
-
-    fn bls12_pairing(p1: &[u8], p2: &[u8], p3: &[u8], p4: &[u8]) -> bool {
-        let mut p1s = deserialize_g1(p1).unwrap();
-        let mut p2s = deserialize_g2(p2).unwrap();
-
-        let mut p1s2 = deserialize_g1(p3).unwrap();
-        let mut p2s2 = deserialize_g2(p4).unwrap();
-
-        let mut r = pair::initmp();
-        pair::another(&mut r, &p2s, &p1s);
-        pair::another(&mut r, &p2s2, &p1s2);
-        let mut v = pair::miller(&r);
-        v = pair::fexp(&v);
-
-        v.is_unity()
     }
 }
