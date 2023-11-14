@@ -28,3 +28,10 @@ export NEAR_SANDBOX_BIN_PATH=<PATH_TO_NEARCORE_FOLDEER>/target/debug/near-sandbo
 ```shell
 cargo test -- --show-output
 ```
+
+## Gas consumption
+Estimated gas consumption: ~16 TGas
+
+The current implementation is tested on the data from the Ethereum Light Client Update. Gas is estimated inside the sandbox.
+Gas prices for the host functions can be inaccurate and can change in the future. Important moment: hashing message into fp2
+is cheap(~2 TGas).
