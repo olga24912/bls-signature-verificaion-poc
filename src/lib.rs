@@ -1,10 +1,10 @@
 use amcl::bls381::bls381::utils::serialize_uncompressed_g1;
 use amcl::bls381::ecp::ECP;
 use amcl::bls381::fp2::FP2;
+use amcl::bls381::hash_to_curve::hash_to_field_fp2;
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::near_bindgen;
 use near_sdk::PanicOnDefault;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use amcl::bls381::hash_to_curve::hash_to_field_fp2;
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
@@ -13,12 +13,14 @@ struct BLSVerificationPOC {}
 #[near_bindgen]
 impl BLSVerificationPOC {
     #[init]
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 
     pub fn verify_bls_signature(msg: Vec<u8>, signature: Vec<u8>, pubkeys: Vec<Vec<u8>>) -> bool {
         let dst: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
-        let msg_fp2 =
-            hash_to_field_fp2(msg.as_slice(), 2, dst).expect("hash to field should not fail for given parameters");
+        let msg_fp2 = hash_to_field_fp2(msg.as_slice(), 2, dst)
+            .expect("hash to field should not fail for given parameters");
 
         let mut msg_fp2_0: [u8; 96] = [0; 96];
         let mut msg_fp2_1: [u8; 96] = [0; 96];
@@ -36,8 +38,8 @@ impl BLSVerificationPOC {
 
         let pks_decompress = near_sdk::env::bls12381_g1_decompress(&pubkeys_ser);
         let mut pks_decompress_with_sign = vec![0u8; 0];
-        for i in 0..pks_decompress.len()/96 {
-            pks_decompress_with_sign.extend(&pks_decompress[i * 96..(i + 1)*96]);
+        for i in 0..pks_decompress.len() / 96 {
+            pks_decompress_with_sign.extend(&pks_decompress[i * 96..(i + 1) * 96]);
             pks_decompress_with_sign.push(0);
         }
 
@@ -61,27 +63,29 @@ impl BLSVerificationPOC {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use tree_hash::TreeHash;
-    use eth_types::eth2::{LightClientUpdate, SyncCommittee, PublicKeyBytes};
-    use eth2_utility::consensus::compute_domain;
-    use eth2_utility::consensus::DOMAIN_SYNC_COMMITTEE;
-    use eth2_utility::consensus::compute_signing_root;
-    use eth2_utility::consensus::{Network, NetworkConfig};
-    use workspaces::{Account, Contract};
-    use serde_json::json;
-    use bitvec::order::Lsb0;
-    use bitvec::prelude::BitVec;
-    use std::str::FromStr;
+    use crate::BLSVerificationPOC;
     use amcl::bls381::bls381::basic::G1_BYTES;
-    use amcl::bls381::bls381::utils::{deserialize_g1, deserialize_g2, serialize_g1, serialize_uncompressed_g2, serialize_uncompressed_g1};
+    use amcl::bls381::bls381::core::map_to_curve_g2;
+    use amcl::bls381::bls381::utils::{
+        deserialize_g1, deserialize_g2, serialize_g1, serialize_uncompressed_g1,
+        serialize_uncompressed_g2,
+    };
     use amcl::bls381::ecp::ECP;
     use amcl::bls381::hash_to_curve::hash_to_field_fp2;
-    use amcl::bls381::bls381::core::map_to_curve_g2;
     use amcl::bls381::pair;
-    use crate::BLSVerificationPOC;
+    use bitvec::order::Lsb0;
+    use bitvec::prelude::BitVec;
+    use eth2_utility::consensus::compute_domain;
+    use eth2_utility::consensus::compute_signing_root;
+    use eth2_utility::consensus::DOMAIN_SYNC_COMMITTEE;
+    use eth2_utility::consensus::{Network, NetworkConfig};
+    use eth_types::eth2::{LightClientUpdate, PublicKeyBytes, SyncCommittee};
+    use serde_json::json;
+    use std::str::FromStr;
+    use tree_hash::TreeHash;
+    use workspaces::{Account, Contract};
 
-    const WASM_FILEPATH: &str =
-        "./target/wasm32-unknown-unknown/release/bls_verification_poc.wasm";
+    const WASM_FILEPATH: &str = "./target/wasm32-unknown-unknown/release/bls_verification_poc.wasm";
 
     #[macro_export]
     macro_rules! call {
@@ -109,23 +113,20 @@ mod tests {
             &std::fs::read_to_string(config.path_to_light_client_updates)
                 .expect("Unable to read file"),
         )
-            .unwrap();
+        .unwrap();
         let current_sync_committee: SyncCommittee = serde_json::from_str(
             &std::fs::read_to_string(config.path_to_current_sync_committee.clone())
                 .expect("Unable to read file"),
         )
-            .unwrap();
+        .unwrap();
         let next_sync_committee: SyncCommittee = serde_json::from_str(
             &std::fs::read_to_string(config.path_to_next_sync_committee.clone())
                 .expect("Unable to read file"),
         )
-            .unwrap();
+        .unwrap();
 
         let sync_committee_bits = BitVec::<u8, Lsb0>::from_slice(
-            &light_client_updates[0]
-                .sync_aggregate
-                .sync_committee_bits
-                .0,
+            &light_client_updates[0].sync_aggregate.sync_committee_bits.0,
         );
 
         let participant_pubkeys =
@@ -183,7 +184,7 @@ mod tests {
             path_to_next_sync_committee: "./data/next_sync_committee_goerli_period_474.json"
                 .to_string(),
             path_to_light_client_updates:
-            "./data/light_client_updates_goerli_slots_3885697_3886176.json".to_string(),
+                "./data/light_client_updates_goerli_slots_3885697_3886176.json".to_string(),
             network_name: "goerli".to_string(),
         }
     }
@@ -199,28 +200,41 @@ mod tests {
         (owner, contract)
     }
 
-    pub async fn call_arg(contract: &Contract, method_name: &str, args: &serde_json::Value) -> bool {
+    pub async fn call_arg(
+        contract: &Contract,
+        method_name: &str,
+        args: &serde_json::Value,
+    ) -> bool {
         let res = contract
             .call(method_name)
             .args_json(args)
             .max_gas()
             .transact()
-            .await.unwrap();
+            .await
+            .unwrap();
 
         res.is_success()
     }
 
-    pub async fn call_by_with_arg(account: &Account, contract: &Contract, method_name: &str, args: &serde_json::Value) -> bool {
-        account.call(contract.id(), method_name)
+    pub async fn call_by_with_arg(
+        account: &Account,
+        contract: &Contract,
+        method_name: &str,
+        args: &serde_json::Value,
+    ) -> bool {
+        account
+            .call(contract.id(), method_name)
             .args_json(args)
             .max_gas()
             .transact()
-            .await.unwrap().is_success()
+            .await
+            .unwrap()
+            .is_success()
     }
 
     pub fn get_participant_pubkeys(
         public_keys: &[PublicKeyBytes],
-        sync_committee_bits: &BitVec<u8, Lsb0>
+        sync_committee_bits: &BitVec<u8, Lsb0>,
     ) -> Vec<PublicKeyBytes> {
         let mut result: Vec<PublicKeyBytes> = vec![];
         for (idx, bit) in sync_committee_bits.iter().by_vals().enumerate() {
