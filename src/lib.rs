@@ -27,15 +27,21 @@ impl BLSVerificationPOC {
 
         let mut msg_g2_0 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_0);
         let mut msg_g2_1 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_1);
-        msg_g2_0.append(&mut vec![0u8]);
+        msg_g2_0.push(0);
         msg_g2_0.append(&mut msg_g2_1);
-        msg_g2_0.append(&mut vec![0u8]);
+        msg_g2_0.push(0);
 
         let msg_g2 = near_sdk::env::bls12381_g2_sum(msg_g2_0.as_slice());
         let pubkeys_ser: Vec<u8> = pubkeys.concat();
 
         let pks_decompress = near_sdk::env::bls12381_g1_decompress(&pubkeys_ser);
-        let pk_agg = near_sdk::env::bls12381_g1_sum(&pks_decompress);
+        let mut pks_decompress_with_sign = vec![0u8; 0];
+        for i in 0..pks_decompress.len()/96 {
+            pks_decompress_with_sign.extend(&pks_decompress[i * 96..(i + 1)*96]);
+            pks_decompress_with_sign.push(0);
+        }
+
+        let pk_agg = near_sdk::env::bls12381_g1_sum(&pks_decompress_with_sign);
 
         let mut gen = ECP::generator();
         gen.neg();
@@ -67,9 +73,10 @@ mod tests {
     use bitvec::prelude::BitVec;
     use std::str::FromStr;
     use amcl::bls381::bls381::basic::G1_BYTES;
-    use amcl::bls381::bls381::utils::{deserialize_g1, deserialize_g2, serialize_g1, serialize_uncompressed_g2};
+    use amcl::bls381::bls381::utils::{deserialize_g1, deserialize_g2, serialize_g1, serialize_uncompressed_g2, serialize_uncompressed_g1};
     use amcl::bls381::ecp::ECP;
     use amcl::bls381::hash_to_curve::hash_to_field_fp2;
+    use amcl::bls381::bls381::core::map_to_curve_g2;
     use amcl::bls381::pair;
     use crate::BLSVerificationPOC;
 
@@ -152,7 +159,9 @@ mod tests {
         );
 
         let res = contract.call("verify_bls_signature").args_json(json!({"msg": signing_root.0.as_bytes(), "signature": light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), "pubkeys": pubks})).max_gas().transact().await.unwrap();
-        //assert_eq!(res.clone().unwrap().json::<bool>().unwrap(), true);
+        assert_eq!(res.clone().unwrap().json::<bool>().unwrap(), true);
+
+        println!("{:?}", res);
         println!("Gas consumption: {:?}", res.unwrap().total_gas_burnt);
 
         println!("Verify: {:?}", verify_signature(signing_root.0.as_bytes().to_vec(), light_client_updates[0].sync_aggregate.sync_committee_signature.0.to_vec(), pubks.clone()));
@@ -234,6 +243,8 @@ mod tests {
             pk_agg = bls12_g1add(&pk_agg, &pks[i]);
         }
 
+        println!("pk_agg: {:?}", serialize_uncompressed_g1(&deserialize_g1(&pk_agg).unwrap()));
+
         let mut gen = ECP::generator();
         gen.neg();
         let g = serialize_g1(&gen);
@@ -243,6 +254,13 @@ mod tests {
 
     pub fn hash_to_curve_g2(msg: &[u8]) -> Vec<u8> {
         let dst: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
+
+        let u =
+            hash_to_field_fp2(&msg, 2, dst).expect("hash to field should not fail for given parameters");
+        let mut q0 = map_to_curve_g2(u[0].clone());
+        q0.clear_cofactor();
+        println!("q0_0: {:?}", serialize_uncompressed_g2(&q0).to_vec());
+
         let q0 = amcl::bls381::bls381::utils::hash_to_curve_g2(msg, dst);
         serialize_uncompressed_g2(&q0).to_vec()
     }
