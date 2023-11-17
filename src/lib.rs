@@ -29,18 +29,19 @@ impl BLSVerificationPOC {
 
         let mut msg_g2_0 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_0);
         let mut msg_g2_1 = near_sdk::env::bls12381_map_fp2_to_g2(&msg_fp2_1);
-        msg_g2_0.push(0);
-        msg_g2_0.append(&mut msg_g2_1);
-        msg_g2_0.push(0);
+        let mut msg_g2_01_sign = vec![0u8; 1];
+        msg_g2_01_sign.append(&mut msg_g2_0);
+        msg_g2_01_sign.push(0);
+        msg_g2_01_sign.append(&mut msg_g2_1);
 
-        let msg_g2 = near_sdk::env::bls12381_g2_sum(msg_g2_0.as_slice());
+        let msg_g2 = near_sdk::env::bls12381_g2_sum(msg_g2_01_sign.as_slice());
         let pubkeys_ser: Vec<u8> = pubkeys.concat();
 
         let pks_decompress = near_sdk::env::bls12381_g1_decompress(&pubkeys_ser);
         let mut pks_decompress_with_sign = vec![0u8; 0];
         for i in 0..pks_decompress.len() / 96 {
-            pks_decompress_with_sign.extend(&pks_decompress[i * 96..(i + 1) * 96]);
             pks_decompress_with_sign.push(0);
+            pks_decompress_with_sign.extend(&pks_decompress[i * 96..(i + 1) * 96]);
         }
 
         let pk_agg = near_sdk::env::bls12381_g1_sum(&pks_decompress_with_sign);
@@ -242,6 +243,7 @@ mod tests {
                 result.push(public_keys[idx].clone());
             }
         }
+
         result
     }
 }
