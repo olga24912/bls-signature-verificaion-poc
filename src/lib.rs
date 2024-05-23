@@ -17,6 +17,9 @@ impl BLSVerificationPOC {
         Self {}
     }
 
+    // WARNING: Before using this function, you must ensure the correctness of the public keys.
+    // If the proof of possession (https://www.ietf.org/archive/id/draft-irtf-cfrg-bls-signature-05.html#name-proof-of-possession)
+    // has not been verified, a Rogue Key Attack may be applied.
     pub fn verify_bls_signature(msg: Vec<u8>, signature: Vec<u8>, pubkeys: Vec<Vec<u8>>) -> bool {
         let dst: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
         let msg_fp2 = hash_to_field_fp2(msg.as_slice(), 2, dst)
